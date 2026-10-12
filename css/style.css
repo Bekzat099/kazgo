@@ -18,7 +18,7 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--bg);
 #topbar{position:absolute;top:0;left:0;right:0;z-index:1000;display:flex;align-items:center;gap:8px;
   padding:8px 12px;pointer-events:none;
   background:linear-gradient(180deg,rgba(10,16,24,.95) 0%,rgba(10,16,24,.8) 70%,transparent 100%)}
-#topbar .logo,#topbar .lvl-badge,#topbar .lvl-name,#topbar .xp-wrap,#topbar #count,#topbar #mode-btn{pointer-events:auto}
+#topbar .logo,#topbar .lvl-badge,#topbar .lvl-name,#topbar .xp-wrap,#topbar #count,#topbar #mode-btn,#topbar #btn-ar{pointer-events:auto}
 .logo{font-weight:800;font-size:15px;letter-spacing:.5px;color:var(--gold);white-space:nowrap}
 .lvl-badge{background:var(--gold);color:#1a1405;font-weight:800;border-radius:8px;padding:2px 8px;font-size:13px;white-space:nowrap}
 .lvl-name{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:90px}
@@ -147,6 +147,12 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--bg);
 #ar-compass{background:rgba(10,16,24,.75);padding:8px 16px;border-radius:14px;font-size:16px;font-weight:800;color:var(--gold)}
 #ar-hint{position:absolute;bottom:96px;left:0;right:0;text-align:center;font-size:13px;color:#fff;
   text-shadow:0 1px 4px #000;pointer-events:none;padding:0 20px}
+#ar-error{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:24px;z-index:5}
+#ar-error .card{background:rgba(8,13,19,.92);border:1px solid rgba(255,135,135,.5);border-radius:16px;
+  padding:18px 20px;max-width:340px;text-align:center;font-size:14px;line-height:1.45}
+#ar-error .card button{margin-top:14px;margin-right:8px;background:var(--gold);color:#1a1405;border:0;
+  padding:10px 18px;border-radius:12px;font-size:14px;font-weight:800;cursor:pointer}
+#ar-error .card button.ghost{background:rgba(255,255,255,.12);color:#fff;border:1px solid rgba(255,255,255,.3)}
 #btn-ar-close{position:absolute;bottom:24px;left:50%;transform:translateX(-50%);background:rgba(10,16,24,.8);
   border:1px solid rgba(255,255,255,.3);color:#fff;padding:12px 26px;border-radius:14px;font-size:15px;font-weight:800}
 #btn-ar{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);color:var(--text);

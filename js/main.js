@@ -492,6 +492,8 @@ function onDeviceOrientation(e) {
   arHeading.t = Date.now();
 }
 async function ensureOrientationPermission() {
+  if (arOrientationAsked) return;
+  arOrientationAsked = true;
   try {
     if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
       const r = await DeviceOrientationEvent.requestPermission(); // iOS: только по жесту пользователя
@@ -499,23 +501,50 @@ async function ensureOrientationPermission() {
     }
   } catch (e) { /* desktop — не критично */ }
 }
-async function openAR() {
-  if (arActive) return;
-  if (player.lat == null) { toast('Сначала начните игру (GPS или демо)', 'warn'); return; }
-  await ensureOrientationPermission();
-  const screen = $('ar-screen');
-  screen.classList.remove('hidden');
+let arOrientationAsked = false;
+function arErrorBox(err) {
+  const box = $('ar-error');
+  if (!err) { box.classList.add('hidden'); return; }
+  let msg;
+  if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+    msg = 'Доступ к камере запрещён. На iPhone: значок 🔒 в адресной строке → «Камера» → «Разрешить» (или Настройки → Safari → Камера). Потом нажмите «Повторить».';
+  } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+    msg = 'Камера на этом устройстве не найдена.';
+  } else if (err.name === 'NotReadableError' || err.name === 'TrackStartError' || err.name === 'OverconstrainedError') {
+    msg = 'Камера занята другим приложением. Закройте его и нажмите «Повторить».';
+  } else {
+    msg = 'Не удалось запустить камеру: ' + (err && err.name ? err.name : String(err));
+  }
+  box.innerHTML = '<div class="card"><b>📷 Камера не работает</b><br>' + msg +
+    '<div><button id="ar-error-retry">Повторить</button>' +
+    '<button id="ar-error-exit" class="ghost">Выйти</button></div></div>';
+  box.classList.remove('hidden');
+  $('ar-error-retry').onclick = () => arStartCamera();
+  $('ar-error-exit').onclick = () => closeAR();
+}
+async function arStartCamera() {
   try {
     arStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
+    arErrorBox(null);
+    const v = $('ar-video');
+    v.srcObject = arStream;
+    v.play().catch(() => {});
+    if (!arActive) {
+      arActive = true;
+      window.addEventListener('deviceorientation', onDeviceOrientation);
+      requestAnimationFrame(arLoop);
+    }
   } catch (e) {
-    toast('Нет доступа к камере', 'warn');
-    screen.classList.add('hidden');
-    return;
+    arErrorBox(e);
   }
-  arActive = true;
-  $('ar-video').srcObject = arStream;
-  window.addEventListener('deviceorientation', onDeviceOrientation);
-  requestAnimationFrame(arLoop);
+}
+async function openAR() {
+  if (arActive) return;
+  if (player.lat == null) { startDemo(); toast('Позиция ещё не готова — включил демо-режим, идите джойстиком', 'info'); }
+  $('ar-screen').classList.remove('hidden');
+  arErrorBox(null);
+  await ensureOrientationPermission();
+  await arStartCamera();
 }
 function closeAR() {
   arActive = false;
@@ -527,6 +556,7 @@ function closeAR() {
   arItems = {};
   $('ar-edge-left').classList.add('hidden');
   $('ar-edge-right').classList.add('hidden');
+  arErrorBox(null);
   $('ar-screen').classList.add('hidden');
 }
 function ensureAREl(key, item) {
