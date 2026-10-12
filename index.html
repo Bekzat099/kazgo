@@ -18,6 +18,7 @@
     <span class="lvl-name" id="level-name">Ушырын</span>
     <div class="xp-wrap"><div class="xp-bar"><div id="xp-fill"></div></div></div>
     <span id="count">0/19</span>
+    <button id="btn-ar">📷 AR</button>
     <button id="mode-btn">—</button>
   </header>
 
@@ -39,6 +40,16 @@
 
   <div id="levelup" class="hidden"><span id="levelup-text"></span></div>
 
+  <div id="ar-screen" class="hidden">
+    <video id="ar-video" autoplay playsinline muted></video>
+    <div id="ar-layer"></div>
+    <div id="ar-edge-left" class="ar-edge hidden"></div>
+    <div id="ar-edge-right" class="ar-edge hidden"></div>
+    <div id="ar-hud"><div id="ar-compass">🧭 —</div></div>
+    <div id="ar-hint"></div>
+    <button id="btn-ar-close">✖ выйти из AR</button>
+  </div>
+
   <div id="start-overlay">
     <div class="hero-emojis">🪕 🎻 🧿 ⭕ 👑</div>
     <h1>KazGo</h1>
@@ -47,11 +58,13 @@
     <ul>
       <li>📍 <b>GPS-режим</b> — иди по городу и собирай предметы в радиусе 30 м</li>
       <li>🕹 <b>Демо-режим</b> — виртуальный джойстик, если нет GPS</li>
+      <li>📷 <b>AR-режим</b> — смотри предметы через камеру и иди к ним</li>
       <li>⭐ XP, уровни, ежедневные квесты и кодекс коллекции</li>
     </ul>
     <button id="btn-gps">📍 Начать идти (GPS)</button>
     <button id="btn-demo">🕹 Демо-режим</button>
-    <p class="note">GPS в браузере работает по HTTPS (или на localhost). Карта — OpenStreetMap, нужен интернет.</p>
+    <p class="note">GPS в браузере работает по HTTPS (или на localhost). Карта — OpenStreetMap, нужен интернет.
+    AR требует камеру и датчики движения (на iPhone разрешите их в диалоге).</p>
   </div>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>

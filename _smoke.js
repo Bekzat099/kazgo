@@ -6,7 +6,8 @@ const puppeteer = require('C:/Users/2022/kazakh-3d-game/node_modules/puppeteer')
   const browser = await puppeteer.launch({
     executablePath: 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
     headless: true,
-    args: ['--no-sandbox', '--enable-unsafe-swiftshader', '--window-size=420,800'],
+    args: ['--no-sandbox', '--enable-unsafe-swiftshader', '--window-size=420,800',
+           '--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream'],
     defaultViewport: { width: 420, height: 800 },
   });
   const page = await browser.newPage();
@@ -84,6 +85,35 @@ const puppeteer = require('C:/Users/2022/kazakh-3d-game/node_modules/puppeteer')
     });
     if (quests !== 3) throw new Error('квестов: ' + quests);
     console.log('QUESTS_OK 3');
+
+    // AR-режим: фейковая камера + сымитированный компас
+    const ar = await page.evaluate(async () => {
+      document.getElementById('btn-ar').click();
+      await new Promise(r => setTimeout(r, 1800));
+      const screen = document.getElementById('ar-screen');
+      const video = document.getElementById('ar-video');
+      window.dispatchEvent(new DeviceOrientationEvent('deviceorientation', { alpha: 120, absolute: true, beta: 0, gamma: 0 }));
+      await new Promise(r => setTimeout(r, 800));
+      const near = document.querySelectorAll('.ar-item.near').length;
+      return {
+        hidden: screen.classList.contains('hidden'),
+        videoReady: video.readyState >= 2,
+        items: document.querySelectorAll('.ar-item').length,
+        near,
+        compass: document.getElementById('ar-compass').textContent,
+      };
+    });
+    console.log('AR', JSON.stringify(ar));
+    if (ar.hidden) throw new Error('AR-экран не открылся');
+    if (!ar.videoReady) throw new Error('видео не запустилось');
+    if (ar.items < 1) throw new Error('в AR нет предметов');
+    if (!/°/.test(ar.compass)) throw new Error('компас не отрисован: ' + ar.compass);
+    await page.screenshot({ path: 'C:/Users/2022/kazgo/_ar.png' });
+    await page.evaluate(() => document.getElementById('btn-ar-close').click());
+    await new Promise(r => setTimeout(r, 400));
+    const arClosed = await page.evaluate(() => document.getElementById('ar-screen').classList.contains('hidden'));
+    if (!arClosed) throw new Error('AR не закрылся');
+    console.log('AR_OK');
 
     await page.screenshot({ path: 'C:/Users/2022/kazgo/_smoke.png' });
 

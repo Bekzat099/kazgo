@@ -1,0 +1,1 @@
+feat: AR mode (camera + GPS + compass overlay, item projection in view)

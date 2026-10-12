@@ -466,6 +466,133 @@ function switchTab(name) {
   if (name === 'nearby') renderNearby();
 }
 
+/* ================= AR-РЕЖИМ (камера + компас) ================= */
+const AR_RANGE = 150;    // м — насколько далеко показывать в AR
+const AR_FOV = 60;       // горизонтальное поле обзора камеры, град
+let arActive = false;
+let arStream = null;
+const arHeading = { h: null, t: 0 };
+let arItems = {};        // key -> {el}
+
+function arCompassText(deg) {
+  if (deg == null) return '🧭 —';
+  const dirs = ['С', 'СВ', 'В', 'ЮВ', 'Ю', 'ЮЗ', 'З', 'СЗ'];
+  return '🧭 ' + Math.round(deg) + '° ' + dirs[Math.round(deg / 45) % 8];
+}
+function onDeviceOrientation(e) {
+  let h = null, src = null;
+  if (e.webkitCompassHeading != null) { h = e.webkitCompassHeading; src = 'webkit'; }
+  else if (e.absolute && e.alpha != null) { h = (360 - e.alpha) % 360; src = 'absolute'; }
+  else if (e.alpha != null) { h = (360 - e.alpha) % 360; src = 'alpha'; }
+  if (h == null) return;
+  if (src !== 'webkit' && window.screen && screen.orientation) {
+    h = (h + (screen.orientation.angle || 0)) % 360;
+  }
+  arHeading.h = h;
+  arHeading.t = Date.now();
+}
+async function ensureOrientationPermission() {
+  try {
+    if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+      const r = await DeviceOrientationEvent.requestPermission(); // iOS: только по жесту пользователя
+      if (r !== 'granted') toast('Доступ к компасу запрещён — направление может быть неточным', 'warn');
+    }
+  } catch (e) { /* desktop — не критично */ }
+}
+async function openAR() {
+  if (arActive) return;
+  if (player.lat == null) { toast('Сначала начните игру (GPS или демо)', 'warn'); return; }
+  await ensureOrientationPermission();
+  const screen = $('ar-screen');
+  screen.classList.remove('hidden');
+  try {
+    arStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
+  } catch (e) {
+    toast('Нет доступа к камере', 'warn');
+    screen.classList.add('hidden');
+    return;
+  }
+  arActive = true;
+  $('ar-video').srcObject = arStream;
+  window.addEventListener('deviceorientation', onDeviceOrientation);
+  requestAnimationFrame(arLoop);
+}
+function closeAR() {
+  arActive = false;
+  window.removeEventListener('deviceorientation', onDeviceOrientation);
+  if (arStream) { arStream.getTracks().forEach(t => t.stop()); arStream = null; }
+  const v = $('ar-video');
+  if (v) v.srcObject = null;
+  $('ar-layer').innerHTML = '';
+  arItems = {};
+  $('ar-edge-left').classList.add('hidden');
+  $('ar-edge-right').classList.add('hidden');
+  $('ar-screen').classList.add('hidden');
+}
+function ensureAREl(key, item) {
+  if (arItems[key]) return arItems[key].el;
+  const el = document.createElement('div');
+  el.className = 'ar-item r-' + item.rarity;
+  el.innerHTML = '<div class="m">' + item.emoji + '</div><span class="d"></span>';
+  el.addEventListener('click', () => tryCollect(key));
+  $('ar-layer').appendChild(el);
+  arItems[key] = { el };
+  return el;
+}
+function setEdge(id, best) {
+  const el = $(id);
+  if (!best) { el.classList.add('hidden'); return; }
+  el.classList.remove('hidden');
+  const arrow = id === 'ar-edge-left' ? '‹ ' : '';
+  const tail = id === 'ar-edge-right' ? ' ›' : '';
+  el.textContent = arrow + best.v.item.name + ' ' + Math.round(best.d) + ' м' + tail;
+}
+function renderAR() {
+  const fresh = arHeading.h != null && Date.now() - arHeading.t < 4000;
+  $('ar-compass').textContent = arCompassText(fresh ? arHeading.h : null);
+  if (!fresh) {
+    $('ar-hint').textContent = 'Ждём компас… (на iPhone разрешите движение и ориентацию)';
+    for (const k in arItems) { arItems[k].el.remove(); delete arItems[k]; }
+    setEdge('ar-edge-left', null); setEdge('ar-edge-right', null);
+    return;
+  }
+  $('ar-hint').textContent = 'Идите к предмету. Коснитесь предмета, когда рядом (≤' + COLLECT_RADIUS + ' м)';
+  const seen = {};
+  let leftBest = null, rightBest = null;
+  for (const [key, v] of Object.entries(visible)) {
+    const d = haversine(player.lat, player.lng, v.lat, v.lng);
+    if (d > AR_RANGE) continue;
+    seen[key] = true;
+    const B = bearing(player.lat, player.lng, v.lat, v.lng);
+    const A = (B - arHeading.h + 540) % 360 - 180;
+    if (Math.abs(A) > 33) {
+      if (A > 0) { if (!rightBest || d < rightBest.d) rightBest = { key, v, d, A }; }
+      else if (!leftBest || d < leftBest.d) leftBest = { key, v, d, A };
+      continue;
+    }
+    const el = ensureAREl(key, v.item);
+    const scale = 1.9 - Math.min(d, 140) / 140 * 1.5; // близко — крупно
+    const size = Math.round(46 * scale);
+    el.style.left = (50 + (A / AR_FOV) * 55) + '%';
+    el.style.top = (46 + Math.min(d, 110) / 110 * 26) + '%';
+    const m = el.querySelector('.m');
+    m.style.width = size + 'px';
+    m.style.height = size + 'px';
+    m.style.fontSize = Math.round(size * 0.52) + 'px';
+    const dEl = el.querySelector('.d');
+    dEl.textContent = d <= COLLECT_RADIUS ? 'собери сейчас! ' + Math.round(d) + ' м' : Math.round(d) + ' м';
+    el.classList.toggle('near', d <= COLLECT_RADIUS);
+  }
+  for (const key in arItems) if (!seen[key]) { arItems[key].el.remove(); delete arItems[key]; }
+  setEdge('ar-edge-left', leftBest);
+  setEdge('ar-edge-right', rightBest);
+}
+function arLoop() {
+  if (!arActive) return;
+  renderAR();
+  requestAnimationFrame(arLoop);
+}
+
 /* ================= СТАРТ ================= */
 window.addEventListener('DOMContentLoaded', () => {
   initMap();
@@ -476,6 +603,8 @@ window.addEventListener('DOMContentLoaded', () => {
   $('btn-gps').onclick = () => { audio(); startGps(); };
   $('btn-demo').onclick = () => { audio(); startDemo(); };
   $('mode-btn').onclick = () => { if (mode === 'demo') startGps(); else if (mode === 'gps') startDemo(); };
+  $('btn-ar').onclick = () => openAR();
+  $('btn-ar-close').onclick = closeAR;
   document.querySelectorAll('#tabs button').forEach(b => b.addEventListener('click', () => switchTab(b.dataset.tab)));
   initJoystick();
   requestAnimationFrame(loop);
