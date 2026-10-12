@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#0e1620">
+<title>KazGo — сокровища степи</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🏹</text></svg>">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div id="map"></div>
+
+  <header id="topbar">
+    <span class="logo">🏹 KazGo</span>
+    <span class="lvl-badge" id="level-num">1</span>
+    <span class="lvl-name" id="level-name">Ушырын</span>
+    <div class="xp-wrap"><div class="xp-bar"><div id="xp-fill"></div></div></div>
+    <span id="count">0/19</span>
+    <button id="mode-btn">—</button>
+  </header>
+
+  <div id="toasts"></div>
+
+  <div id="joystick" class="hidden"><div id="stick"></div></div>
+
+  <nav id="tabs">
+    <button data-tab="nearby" class="active">🧭 Рядом</button>
+    <button data-tab="codex">📖 Коллекция</button>
+    <button data-tab="quests">🎯 Квесты</button>
+  </nav>
+
+  <section id="panel">
+    <div id="tab-nearby" class="tab active"></div>
+    <div id="tab-codex" class="tab"></div>
+    <div id="tab-quests" class="tab"></div>
+  </section>
+
+  <div id="levelup" class="hidden"><span id="levelup-text"></span></div>
+
+  <div id="start-overlay">
+    <div class="hero-emojis">🪕 🎻 🧿 ⭕ 👑</div>
+    <h1>KazGo</h1>
+    <p class="sub">Ходи по своему городу и собирай сокровища казахской степи:
+      домбыру, қобыз, ою-өрнек, шаңырақ — и вещи ещё более редкие.</p>
+    <ul>
+      <li>📍 <b>GPS-режим</b> — иди по городу и собирай предметы в радиусе 30 м</li>
+      <li>🕹 <b>Демо-режим</b> — виртуальный джойстик, если нет GPS</li>
+      <li>⭐ XP, уровни, ежедневные квесты и кодекс коллекции</li>
+    </ul>
+    <button id="btn-gps">📍 Начать идти (GPS)</button>
+    <button id="btn-demo">🕹 Демо-режим</button>
+    <p class="note">GPS в браузере работает по HTTPS (или на localhost). Карта — OpenStreetMap, нужен интернет.</p>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="js/items.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>
