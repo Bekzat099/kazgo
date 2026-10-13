@@ -22,18 +22,23 @@ const puppeteer = require('C:/Users/2022/kazakh-3d-game/node_modules/puppeteer')
     await page.click('#btn-demo');
     await new Promise(r => setTimeout(r, 1500));
 
-    const state = await page.evaluate(() => ({
-      overlayHidden: document.getElementById('start-overlay').classList.contains('hidden'),
-      joystickVisible: !document.getElementById('joystick').classList.contains('hidden'),
-      playerSet: player.lat != null,
-      itemsVisible: Object.keys(visible).length,
-      markersOnMap: document.querySelectorAll('.item-marker').length,
-      playerMarker: !!document.querySelector('.player-marker'),
-    }));
+    const state = await page.evaluate(() => {
+      const maxVisD = Math.max(...Object.values(visible).map(v => haversine(player.lat, player.lng, v.lat, v.lng)));
+      return {
+        overlayHidden: document.getElementById('start-overlay').classList.contains('hidden'),
+        joystickVisible: !document.getElementById('joystick').classList.contains('hidden'),
+        playerSet: player.lat != null,
+        itemsVisible: Object.keys(visible).length,
+        markersOnMap: document.querySelectorAll('.item-marker').length,
+        playerMarker: !!document.querySelector('.player-marker'),
+        maxVisibleDist: Math.round(maxVisD),
+      };
+    });
     console.log('DEMO_STATE', JSON.stringify(state));
     if (!state.playerSet || state.itemsVisible === 0) throw new Error('нет игрока или предметов');
     if (!state.markersOnMap) throw new Error('нет маркеров на карте');
     if (!state.playerMarker) throw new Error('нет маркера игрока');
+    if (state.maxVisibleDist > 105) throw new Error('туман сломан: видим предмет в ' + state.maxVisibleDist + ' м');
 
     // сбор: телепорт к ближайшему предмету и tryCollect
     const before = await page.evaluate(() => ({ total: save.total, xp: save.xp }));
@@ -75,7 +80,7 @@ const puppeteer = require('C:/Users/2022/kazakh-3d-game/node_modules/puppeteer')
       return { cards: cards.length, collected };
     });
     console.log('CODEX', JSON.stringify(codex));
-    if (codex.cards !== 19) throw new Error('кодекс: ' + codex.cards + ' карточек');
+    if (codex.cards !== 83) throw new Error('кодекс: ' + codex.cards + ' карточек');
     if (codex.collected !== 1) throw new Error('в кодексе не отмечен собранный предмет');
 
     // квесты
@@ -92,8 +97,17 @@ const puppeteer = require('C:/Users/2022/kazakh-3d-game/node_modules/puppeteer')
       await new Promise(r => setTimeout(r, 1800));
       const screen = document.getElementById('ar-screen');
       const video = document.getElementById('ar-video');
-      window.dispatchEvent(new DeviceOrientationEvent('deviceorientation', { alpha: 120, absolute: true, beta: 0, gamma: 0 }));
-      await new Promise(r => setTimeout(r, 800));
+      // прицеливаем сымитированный компас прямо на ближайший предмет
+      let best = null;
+      for (const [key, v] of Object.entries(visible)) {
+        const d = haversine(player.lat, player.lng, v.lat, v.lng);
+        if (!best || d < best.d) best = { key, v, d };
+      }
+      const B = bearing(player.lat, player.lng, best.v.lat, best.v.lng);
+      arHeading.h = B;
+      arHeading.t = Date.now();
+      renderAR();
+      await new Promise(r => setTimeout(r, 300));
       const near = document.querySelectorAll('.ar-item.near').length;
       return {
         hidden: screen.classList.contains('hidden'),

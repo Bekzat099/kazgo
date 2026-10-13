@@ -2,7 +2,8 @@
 
 /* ================= КОНФИГ ================= */
 const CELL_M = 40;               // размер клетки спавна, м
-const WORLD_RADIUS = 350;        // радиус мира вокруг игрока, м
+const WORLD_RADIUS = 350;        // радиус мира вокруг игрока, м (предметы существуют)
+const VISION_RADIUS = 100;       // радиус видимости: дальше — «туман», не показываем
 const COLLECT_RADIUS = 30;       // радиус сбора, м
 const RESPAWN_MS = 90 * 1000;    // перезарядка клетки после сбора
 const SPAWN_CHANCE = 0.34;       // шанс предмета в клетке
@@ -12,9 +13,9 @@ const START_CENTER = [43.2222, 76.8512]; // Алматы
 
 const LEVEL_NAMES = ['Ушырын','Жигерлі','Білікті','Санақты','Устаз','Жаңаша','Білеу','Батыр'];
 const QUESTS = [
-  { id:'c5',   stat:'common', goal:5,   text:'Собери 5 ади-предметов',      reward:30  },
-  { id:'r2',   stat:'rare',   goal:2,   text:'Собери 2 сәлқән-предмета',    reward:50  },
-  { id:'w200', stat:'dist',   goal:200, text:'Пройди 200 м',                reward:30  },
+  { id:'r5',   stat:'rare',  goal:5,   text:'Собери 5 редких предметов',      reward:30  },
+  { id:'u2',   stat:'ultra', goal:2,   text:'Собери 2 сверхредких предмета',  reward:60  },
+  { id:'w200', stat:'dist',  goal:200, text:'Пройди 200 м',                   reward:30  },
 ];
 
 /* ================= МАТЕМАТИКА И RNG ================= */
@@ -94,7 +95,7 @@ function pickItem(r) {
 function defaultSave() {
   return {
     xp: 0, counts: {}, cells: {}, origin: null, total: 0,
-    quests: { date: dayKey(), p: { common: 0, rare: 0, epic: 0, legendary: 0, dist: 0 }, claimed: {} },
+    quests: { date: dayKey(), p: { rare: 0, ultra: 0, epic: 0, mythic: 0, legendary: 0, dist: 0 }, claimed: {} },
   };
 }
 function loadSave() {
@@ -163,7 +164,8 @@ function itemIcon(item) {
 function tickSpawns() {
   if (player.lat == null || !map) return;
   const now = Date.now();
-  const next = {};
+  // мир: предметы существуют в радиусе WORLD_RADIUS вокруг игрока
+  const world = {};
   for (const key of cellsAround(player.lat, player.lng, WORLD_RADIUS)) {
     const meta = save.cells[key];
     if (meta && now - meta.ts < RESPAWN_MS) continue;
@@ -172,19 +174,24 @@ function tickSpawns() {
     const item = pickItem(r);
     const pos = cellPos(key, r);
     if (haversine(player.lat, player.lng, pos.lat, pos.lng) > WORLD_RADIUS) continue;
-    next[key] = { item, lat: pos.lat, lng: pos.lng };
+    world[key] = { item, lat: pos.lat, lng: pos.lng };
   }
-  // гарантия: хотя бы один предмет в 120 м, чтобы не бродить впустую
-  const hasNear = Object.values(next).some(v => haversine(player.lat, player.lng, v.lat, v.lng) < 120);
+  // гарантия: хотя бы один предмет в радиусе видимости
+  const hasNear = Object.values(world).some(v => haversine(player.lat, player.lng, v.lat, v.lng) <= VISION_RADIUS);
   if (!hasNear) {
     const r = rngFor('guarantee|' + Math.round(player.lat * 1e4) + '|' + Math.round(player.lng * 1e4) + '|' + dayKey());
-    const ang = r() * Math.PI * 2, d = 30 + r() * 70;
+    const ang = r() * Math.PI * 2, d = 25 + r() * 50;
     const pos = {
       lat: player.lat + d * Math.cos(ang) / 111320,
       lng: player.lng + d * Math.sin(ang) / (111320 * Math.cos(player.lat * Math.PI / 180)),
     };
     const key = cellKey(pos.lat, pos.lng);
-    if (!next[key]) next[key] = { item: pickByRarity('common', r), lat: pos.lat, lng: pos.lng };
+    if (!world[key]) world[key] = { item: pickByRarity('rare', r), lat: pos.lat, lng: pos.lng };
+  }
+  // туман войны: на карте и в списке только то, что в VISION_RADIUS
+  const next = {};
+  for (const key in world) {
+    if (haversine(player.lat, player.lng, world[key].lat, world[key].lng) <= VISION_RADIUS) next[key] = world[key];
   }
   for (const key in visible) if (!next[key]) visible[key].marker.remove();
   for (const key in next) {
@@ -200,6 +207,7 @@ function tickSpawns() {
   visible = next;
   renderNearby();
 }
+
 
 /* ================= СБОР / XP / КВЕСТЫ ================= */
 function tryCollect(key) {
@@ -219,7 +227,7 @@ function tryCollect(key) {
   delete visible[key];
   playPluck(it.rarity);
   addXp(xp);
-  toast('+' + xp + ' XP · ' + it.emoji + ' ' + it.name, it.rarity === 'legendary' ? 'legend' : 'good');
+  toast('+' + xp + ' XP · ' + it.emoji + ' ' + it.name, (it.rarity === 'legendary' || it.rarity === 'mythic') ? 'legend' : 'good');
   checkQuests();
   renderTopbar();
   renderCodex();
@@ -235,7 +243,7 @@ function checkQuests() {
   const q = save.quests;
   if (q.date !== dayKey()) {
     q.date = dayKey();
-    q.p = { common: 0, rare: 0, epic: 0, legendary: 0, dist: 0 };
+    q.p = { rare: 0, ultra: 0, epic: 0, mythic: 0, legendary: 0, dist: 0 };
     q.claimed = {};
   }
   let changed = false;
@@ -369,9 +377,10 @@ function pluck(freq, when, dur, vol) {
   o.stop(t + (dur || 0.5) + 0.05);
 }
 function playPluck(rar) {
-  if (rar === 'legendary') [329.6, 392, 523.3, 659.3].forEach((f, i) => pluck(f, i * 0.09, 0.6, 0.35));
+  if (rar === 'legendary') [329.6, 392, 523.3, 659.3, 784].forEach((f, i) => pluck(f, i * 0.09, 0.6, 0.35));
+  else if (rar === 'mythic') [261.6, 329.6, 392, 523.3].forEach((f, i) => pluck(f, i * 0.09, 0.55, 0.4));
   else if (rar === 'epic') [220, 330, 440].forEach((f, i) => pluck(f, i * 0.09, 0.5, 0.4));
-  else if (rar === 'rare') { pluck(220, 0, 0.45, 0.4); pluck(330, 0.1, 0.5, 0.35); }
+  else if (rar === 'ultra') { pluck(220, 0, 0.45, 0.4); pluck(330, 0.1, 0.5, 0.35); }
   else pluck(196, 0, 0.45, 0.45);
 }
 function playLevel() { [261.6, 329.6, 392, 523.3].forEach((f, i) => pluck(f, i * 0.12, 0.7, 0.4)); }
@@ -414,8 +423,8 @@ function renderNearby() {
     .map(([key, v]) => ({ v, d: haversine(player.lat, player.lng, v.lat, v.lng), b: bearing(player.lat, player.lng, v.lat, v.lng) }))
     .sort((a, b) => a.d - b.d)
     .slice(0, 12);
-  if (!list.length) { el.innerHTML = '<p class="hint">Рядом пусто. Пройдитесь ещё немного!</p>'; return; }
-  el.innerHTML = '<p class="hint">Коснись предмета на карте, если он в ' + COLLECT_RADIUS + ' м. Стрелка — направление на север.</p>' +
+  if (!list.length) { el.innerHTML = '<p class="hint">Рядом пусто. Пройдитесь ещё немного! (предметы видны в ' + VISION_RADIUS + ' м)</p>'; return; }
+  el.innerHTML = '<p class="hint">Коснись предмета на карте, если он в ' + COLLECT_RADIUS + ' м. Дальше ' + VISION_RADIUS + ' м предметы скрыты.</p>' +
     list.map(({ v, d, b }) => {
       const near = d <= COLLECT_RADIUS;
       return '<div class="nearby-row ' + (near ? 'near' : '') + '">' +
@@ -467,7 +476,7 @@ function switchTab(name) {
 }
 
 /* ================= AR-РЕЖИМ (камера + компас) ================= */
-const AR_RANGE = 150;    // м — насколько далеко показывать в AR
+const AR_RANGE = VISION_RADIUS;  // в AR тоже не показываем то, что «в тумане»
 const AR_FOV = 60;       // горизонтальное поле обзора камеры, град
 let arActive = false;
 let arStream = null;

@@ -57,7 +57,9 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--bg);
 .codex-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:8px}
 .codex-card{border-radius:12px;padding:10px 6px;text-align:center;background:rgba(255,255,255,.06);border-top:3px solid #9aa5b1;cursor:default}
 .codex-card.r-rare{border-color:#4dabf7}
-.codex-card.r-epic{border-color:#b197fc}
+.codex-card.r-ultra{border-color:#9775fa}
+.codex-card.r-epic{border-color:#f783ac}
+.codex-card.r-mythic{border-color:#ff6b6b}
 .codex-card.r-legendary{border-color:#fec50c}
 .codex-card.locked{opacity:.55;filter:grayscale(1)}
 .c-emoji{font-size:26px;display:block}
@@ -76,7 +78,9 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--bg);
 .item-marker{width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,.95);display:flex;align-items:center;
   justify-content:center;font-size:19px;border:3px solid #9aa5b1;box-shadow:0 3px 10px rgba(0,0,0,.4)}
 .item-marker.r-rare{border-color:#4dabf7}
-.item-marker.r-epic{border-color:#b197fc}
+.item-marker.r-ultra{border-color:#9775fa}
+.item-marker.r-epic{border-color:#f783ac}
+.item-marker.r-mythic{border-color:#ff6b6b;box-shadow:0 0 12px 3px rgba(255,107,107,.5)}
 .item-marker.r-legendary{border-color:#fec50c;animation:legend-glow 1.1s ease-in-out infinite alternate}
 @keyframes legend-glow{from{box-shadow:0 0 6px 2px rgba(254,197,12,.4)}to{box-shadow:0 0 16px 6px rgba(254,197,12,.8)}}
 .player-icon{pointer-events:none}
@@ -135,7 +139,9 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--bg);
 .ar-item .m{display:flex;align-items:center;justify-content:center;margin:0 auto;border-radius:50%;
   background:rgba(255,255,255,.95);border:3px solid #9aa5b1;box-shadow:0 3px 10px rgba(0,0,0,.45)}
 .ar-item.r-rare .m{border-color:#4dabf7}
-.ar-item.r-epic .m{border-color:#b197fc}
+.ar-item.r-ultra .m{border-color:#9775fa}
+.ar-item.r-epic .m{border-color:#f783ac}
+.ar-item.r-mythic .m{border-color:#ff6b6b;box-shadow:0 0 14px 5px rgba(255,107,107,.5)}
 .ar-item.r-legendary .m{border-color:#fec50c;box-shadow:0 0 18px 6px rgba(254,197,12,.7)}
 .ar-item .d{display:block;margin-top:2px;font-size:11px;font-weight:700;color:#fff;text-shadow:0 1px 3px #000}
 .ar-item.near .d{color:var(--gold)}
